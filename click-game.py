@@ -39,8 +39,10 @@ class ClickGame:
         self._in_challenge = False
         self._remaining = 0
         self._timer_id = None
+        self._flash_id = None
         self._build_ui()
         self.root.bind("<space>", lambda e: self._on_click())
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build_ui(self):
         t = THEME
@@ -113,8 +115,14 @@ class ClickGame:
         self._flash_btn()
 
     def _flash_btn(self):
+        if self._flash_id is not None:
+            self.root.after_cancel(self._flash_id)
         self.click_btn.config(bg=THEME["btn_flash"])
-        self.root.after(120, lambda: self.click_btn.config(bg=THEME["btn_bg"]))
+        self._flash_id = self.root.after(120, self._restore_btn_bg)
+
+    def _restore_btn_bg(self):
+        self._flash_id = None
+        self.click_btn.config(bg=THEME["btn_bg"])
 
     def _refresh_score(self):
         self.score_label.config(text=f"得分: {self.score}")
@@ -140,7 +148,7 @@ class ClickGame:
         self.timer_label.config(text=f"剩余: {self._remaining}s")
         self.click_btn.config(state="normal")
         self.challenge_btn.config(state="disabled")
-        self._tick()
+        self._timer_id = self.root.after(1000, self._tick)
 
     def _tick(self):
         if self._remaining <= 0:
@@ -153,9 +161,19 @@ class ClickGame:
     def _end_challenge(self):
         self._in_challenge = False
         self._update_high()
-        self.click_btn.config(state="disabled")
+        if self._flash_id is not None:
+            self.root.after_cancel(self._flash_id)
+            self._flash_id = None
+        self.click_btn.config(state="disabled", bg=THEME["btn_bg"])
         self.challenge_btn.config(state="normal")
         self.timer_label.config(text=f"时间到！得分: {self.score}")
+
+    def _on_close(self):
+        if self._timer_id is not None:
+            self.root.after_cancel(self._timer_id)
+        if self._flash_id is not None:
+            self.root.after_cancel(self._flash_id)
+        self.root.destroy()
 
 
 def main():

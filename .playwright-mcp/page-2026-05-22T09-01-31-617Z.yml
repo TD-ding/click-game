@@ -1,0 +1,106 @@
+- generic [active] [ref=e1]:
+  - generic:
+    - paragraph: 加载中...
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - heading "Mini Shop" [level=1] [ref=e5]
+      - navigation [ref=e6]:
+        - button "商品" [ref=e7] [cursor=pointer]
+        - button "购物车 0" [ref=e8] [cursor=pointer]
+        - button "订单" [ref=e9] [cursor=pointer]
+  - main [ref=e10]:
+    - generic [ref=e11]:
+      - textbox "搜索商品..." [ref=e13]
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - button "全部 (8)" [ref=e16] [cursor=pointer]
+          - button "电脑 (2)" [ref=e17] [cursor=pointer]
+          - button "手机 (2)" [ref=e18] [cursor=pointer]
+          - button "配件 (3)" [ref=e19] [cursor=pointer]
+          - button "游戏 (1)" [ref=e20] [cursor=pointer]
+          - button "❤️ 仅看收藏" [ref=e21] [cursor=pointer]
+        - generic [ref=e22]:
+          - button "默认" [ref=e23] [cursor=pointer]
+          - button "价格 ↑" [ref=e24] [cursor=pointer]
+          - button "价格 ↓" [ref=e25] [cursor=pointer]
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - button "🤍" [ref=e28] [cursor=pointer]:
+          - generic [ref=e29]: 🤍
+        - img "MacBook Pro 16寸" [ref=e30] [cursor=pointer]
+        - generic [ref=e31]:
+          - heading "MacBook Pro 16寸" [level=3] [ref=e32] [cursor=pointer]
+          - paragraph [ref=e33]: Apple M3 Pro 芯片，18GB 内存，512GB 存储
+          - generic [ref=e34]:
+            - generic [ref=e35]: ¥18999.00
+            - button "加入购物车" [ref=e36] [cursor=pointer]
+      - generic [ref=e37]:
+        - button "🤍" [ref=e38] [cursor=pointer]:
+          - generic [ref=e39]: 🤍
+        - img "iPhone 15 Pro Max" [ref=e40] [cursor=pointer]
+        - generic [ref=e41]:
+          - heading "iPhone 15 Pro Max" [level=3] [ref=e42] [cursor=pointer]
+          - paragraph [ref=e43]: A17 Pro 芯片，钛金属设计，4800万像素
+          - generic [ref=e44]:
+            - generic [ref=e45]: ¥9999.00
+            - button "加入购物车" [ref=e46] [cursor=pointer]
+      - generic [ref=e47]:
+        - button "🤍" [ref=e48] [cursor=pointer]:
+          - generic [ref=e49]: 🤍
+        - img "AirPods Pro 2" [ref=e50] [cursor=pointer]
+        - generic [ref=e51]:
+          - heading "AirPods Pro 2" [level=3] [ref=e52] [cursor=pointer]
+          - paragraph [ref=e53]: 主动降噪，自适应通透模式，USB-C 充电
+          - generic [ref=e54]:
+            - generic [ref=e55]: ¥1899.00
+            - button "加入购物车" [ref=e56] [cursor=pointer]
+      - generic [ref=e57]:
+        - button "🤍" [ref=e58] [cursor=pointer]:
+          - generic [ref=e59]: 🤍
+        - img "iPad Air M2" [ref=e60] [cursor=pointer]
+        - generic [ref=e61]:
+          - heading "iPad Air M2" [level=3] [ref=e62] [cursor=pointer]
+          - paragraph [ref=e63]: M2 芯片，11英寸液态视网膜显示屏
+          - generic [ref=e64]:
+            - generic [ref=e65]: ¥6499.00
+            - button "加入购物车" [ref=e66] [cursor=pointer]
+      - generic [ref=e67]:
+        - button "🤍" [ref=e68] [cursor=pointer]:
+          - generic [ref=e69]: 🤍
+        - img "Sony WH-1000XM5" [ref=e70] [cursor=pointer]
+        - generic [ref=e71]:
+          - heading "Sony WH-1000XM5" [level=3] [ref=e72] [cursor=pointer]
+          - paragraph [ref=e73]: 行业领先降噪，30小时续航，轻量舒适设计
+          - generic [ref=e74]:
+            - generic [ref=e75]: ¥2499.00
+            - button "加入购物车" [ref=e76] [cursor=pointer]
+      - generic [ref=e77]:
+        - button "🤍" [ref=e78] [cursor=pointer]:
+          - generic [ref=e79]: 🤍
+        - img "Samsung Galaxy S24 Ultra" [ref=e80] [cursor=pointer]
+        - generic [ref=e81]:
+          - heading "Samsung Galaxy S24 Ultra" [level=3] [ref=e82] [cursor=pointer]
+          - paragraph [ref=e83]: 钛金属框架，2亿像素，Galaxy AI 智能助手
+          - generic [ref=e84]:
+            - generic [ref=e85]: ¥9699.00
+            - button "加入购物车" [ref=e86] [cursor=pointer]
+      - generic [ref=e87]:
+        - button "🤍" [ref=e88] [cursor=pointer]:
+          - generic [ref=e89]: 🤍
+        - img "Nintendo Switch OLED" [ref=e90] [cursor=pointer]
+        - generic [ref=e91]:
+          - heading "Nintendo Switch OLED" [level=3] [ref=e92] [cursor=pointer]
+          - paragraph [ref=e93]: 7英寸OLED屏，64GB存储，增强音效
+          - generic [ref=e94]:
+            - generic [ref=e95]: ¥2349.00
+            - button "加入购物车" [ref=e96] [cursor=pointer]
+      - generic [ref=e97]:
+        - button "🤍" [ref=e98] [cursor=pointer]:
+          - generic [ref=e99]: 🤍
+        - img "Apple Watch Ultra 2" [ref=e100] [cursor=pointer]
+        - generic [ref=e101]:
+          - heading "Apple Watch Ultra 2" [level=3] [ref=e102] [cursor=pointer]
+          - paragraph [ref=e103]: S9 芯片，49mm 钛金属表壳，双频 GPS
+          - generic [ref=e104]:
+            - generic [ref=e105]: ¥5999.00
+            - button "加入购物车" [ref=e106] [cursor=pointer]

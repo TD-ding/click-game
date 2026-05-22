@@ -212,6 +212,7 @@ Every project MUST include:
 
 ### Dockerfile Standards
 
+- **所有配置必须可直接运行，禁止仅占位**。Dockerfile 必须 `docker build` 成功，docker-compose 必须 `docker-compose up` 正常启动服务，CI 配置必须在实际 push 时通过。不要生成无法执行的模板代码。
 - Use official base images with explicit version tags (e.g., `node:18-alpine`, `python:3.11-slim`)
 - Multi-stage build for production (build stage + runtime stage)
 - Run as non-root user

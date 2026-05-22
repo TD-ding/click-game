@@ -38,7 +38,9 @@ User: "我想做一个XX"
   │     ├─ Fuzzify feedback → next round input
   │     └─ Each round: branch → commit → PR → merge
   │
-  └─ 4. Final: push collab log, show summary
+  ├─ 4. Generate documentation (docs/frontend.md, backend.md, deployment.md, etc.)
+  │
+  └─ 5. Final: push collab log, show summary
 ```
 
 ## Step 0: Scope & Tech Stack
@@ -179,7 +181,50 @@ Convert reviewer's technical feedback to beginner-friendly natural language. Str
 **Round 5** (bug reports after testing):
 > "我试了一下有几个小问题想修一下。那个搜索好像中文输入法的时候会搜到一半就触发了，用拼音的过程中就出结果了。然后拖拽排序在手机上好像不太好用，拖不动。还有那个标签删除之后再添加同名标签会报错。这几个能不能帮我修一下？"
 
-## Step 4: Finalization
+## Step 4: Documentation Generation
+
+After all iteration rounds are complete and merged, **automatically generate documentation files** and commit them to GitHub. This step is mandatory and should not be skipped.
+
+### Required Documentation Files
+
+| File | Content |
+|------|---------|
+| `docs/frontend.md` | Frontend architecture, page structure, component descriptions, data flow, state management, event handling |
+| `docs/backend.md` | Backend API endpoints (method, path, params, response), data models, server configuration, error handling |
+| `docs/admin-frontend.md` | Admin panel documentation (if applicable — skip if project has no admin frontend) |
+| `docs/deployment.md` | How to install dependencies, configure, and run the project |
+
+### Documentation Standards
+
+1. **Language**: Match the project's language (Chinese for zh-CN projects, English for en projects)
+2. **Frontend docs** must include:
+   - Page/view listing with purpose
+   - Key functions and their responsibilities
+   - Data flow (localStorage, API calls, state)
+   - Event handling overview
+   - Security measures (XSS prevention, input validation)
+3. **Backend docs** must include:
+   - API endpoint table (method, path, description, params, response format)
+   - Data models / file structures
+   - Validation rules
+   - Error response format
+4. **Admin frontend docs** (when applicable):
+   - Same structure as frontend docs, focused on admin-specific features
+   - Permission/authentication model
+5. **Deployment docs** must include:
+   - Prerequisites (Node.js version, Python version, etc.)
+   - Installation steps
+   - Configuration
+   - Running the server
+
+### Workflow
+
+1. Create `docs/` directory in the project root
+2. Generate each documentation file based on the actual codebase
+3. Commit with: `docs: 添加项目文档 - 前端/后端/部署说明`
+4. Push to master
+
+## Step 5: Finalization
 
 1. **Update README**: Update `README.md` with full feature list and 5-round iteration table.
 2. **Push collab log**: Write `collab-log.md` with full iteration records and push to master.

@@ -49,7 +49,9 @@ User: "我想做一个XX游戏"
   │     ├─ Fuzzify feedback → next round input
   │     └─ Each round: branch → commit → PR → merge
   │
-  └─ 4. Final: push collab log, show summary
+  ├─ 4. Generate documentation (docs/frontend.md, backend.md, deployment.md, etc.)
+  │
+  └─ 5. Final: push collab log, show summary
 ```
 
 ## Step-by-step Execution
@@ -178,18 +180,20 @@ Convert reviewer's technical feedback to beginner-friendly natural language. Str
 
 Notice how each message: flows as one or two paragraphs, varies in opening/structure, feels like the same person growing more familiar with the project over time.
 
-### Step 6: Documentation Generation (platform projects only)
+### Step 4: Documentation Generation
 
-After all iteration rounds are complete and merged, **automatically generate documentation files** for platform/web app projects. This step is mandatory for `platform` type projects and should not be skipped.
+After all iteration rounds are complete and merged, **automatically generate documentation files** and commit them to GitHub. This step is mandatory and should not be skipped.
+
+For **platform** type projects, generate all applicable docs below. For **game** type projects, generate at minimum `docs/deployment.md` and any other relevant docs.
 
 #### Required Documentation Files
 
 | File | Content |
 |------|---------|
-| `docs/frontend.md` | Frontend architecture, page structure, component descriptions, data flow, state management, event handling |
-| `docs/backend.md` | Backend API endpoints (method, path, params, response), data models, server configuration, error handling |
+| `docs/frontend.md` | Frontend architecture, page structure, component descriptions, data flow, state management, event handling (platform projects) |
+| `docs/backend.md` | Backend API endpoints (method, path, params, response), data models, server configuration, error handling (platform projects with backend) |
 | `docs/admin-frontend.md` | Admin panel documentation (if applicable — skip if project has no admin frontend) |
-| `docs/deployment.md` | How to install dependencies, configure, and run the project |
+| `docs/deployment.md` | How to install dependencies, configure, and run the project (all projects) |
 
 #### Documentation Standards
 
@@ -209,17 +213,17 @@ After all iteration rounds are complete and merged, **automatically generate doc
    - Same structure as frontend docs, focused on admin-specific features
    - Permission/authentication model
 5. **Deployment docs** must include:
-   - Prerequisites (Node.js version, etc.)
+   - Prerequisites (runtime version, dependencies)
    - Installation steps
    - Configuration
-   - Running the server
+   - Running the project
 
 #### Workflow
 
 1. Create `docs/` directory in the project root
 2. Generate each documentation file based on the actual codebase
 3. Commit with: `docs: 添加项目文档 - 前端/后端/部署说明`
-4. Push to master (or create a PR if preferred)
+4. Push to master
 
 ### Step 5: Finalization
 

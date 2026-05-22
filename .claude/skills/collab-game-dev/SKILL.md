@@ -1,11 +1,11 @@
 ---
 name: collab-game-dev
-description: Collaborative game development workflow using two A2A child sessions (generator + reviewer), fuzzified feedback relay, and per-round PR commits to GitHub.
+description: Collaborative development workflow using two A2A child sessions (generator + reviewer), fuzzified feedback relay, per-round PR commits to GitHub, and automatic documentation generation.
 ---
 
-# Collaborative Game Development Skill
+# Collaborative Development Skill
 
-Automatically triggered when the user describes a game they want to build. The entire workflow — A2A delegation, fuzzified feedback, per-round PRs, and GitHub upload — runs without further guidance.
+Automatically triggered when the user describes a game or platform/web app they want to build. The entire workflow — A2A delegation, fuzzified feedback, per-round PRs, documentation generation, and GitHub upload — runs without further guidance.
 
 ## Trigger
 
@@ -13,9 +13,24 @@ The user says something like:
 - "我想做一个 XX 小游戏"
 - "帮我做个 XX 游戏"
 - "I want to build a XX game"
-- Any description that clearly describes a game concept
+- "我想做一个有前后端交互的 XX 页面/平台/应用"
+- "帮我做个 XX 购物/管理/后台系统"
+- Any description that clearly describes a game concept or web platform/app
 
 If the intent is ambiguous, briefly confirm before starting.
+
+## Project Type Detection
+
+Based on the user's description, determine the project type:
+
+| Type | Indicators | Examples |
+|------|-----------|----------|
+| **game** | 单文件游戏、小游戏、pygame、tkinter 游戏 | 点击游戏、吃豆人、飞机大战 |
+| **platform** | 前后端交互、购物/管理/后台系统、有 API 接口 | 购物页面、博客系统、管理系统 |
+
+The project type affects:
+- **game**: Single-file output, game-focused iteration topics (scoring, UX, features, bugs)
+- **platform**: Multi-file project structure (frontend + backend + data), includes automatic documentation generation
 
 ## Workflow Overview
 
@@ -97,21 +112,114 @@ Run up to **5 rounds**. Each round follows this pattern:
    - Keep only the improvement intent, not implementation details
    - Split into batches if too many suggestions
 
-### Step 4: Fuzzification Rules
+## Message Style: Natural Conversation
 
-Convert reviewer's technical feedback to beginner-friendly language. Examples:
+All messages sent to child sessions must read like a real person talking to a developer — not like a requirements document.
 
-| Technical Feedback | Fuzzified Version |
+### Core Rules
+
+1. **Write paragraphs, not lists.** Never number or bullet-point your requests. A real user would say:
+   > "我看了一下感觉还可以，不过有几个地方想改改。那个错误处理好像用不太上，能不能清理一下？然后颜色字体这些分散在各处改起来不太方便，能不能统一放一个地方？还有就是程序出错了也没什么提示，帮我加个简单的错误提示吧，更新一下那个文件。"
+
+   NOT:
+   > "1. 错误处理清理掉 2. 颜色字体统一 3. 加错误提示 请更新文件"
+
+2. **Vary your openings and closings.** Don't repeat "请帮我更新 click-game.py" every round. Instead mix it up:
+   - "我又试了一下，有几个地方想调整..."
+   - "感觉挺好的！不过我还想加几个东西..."
+   - "刚才那个有个小问题，能不能修一下..."
+   - "玩了一下觉得还差点意思，你看看能不能..."
+   - "对了还有个事，我觉得..."
+
+3. **Match the round's mood.** Each round has a natural emotional arc:
+   - Round 1 (init): Excited but vague ("我想做一个XX！但不太懂技术...")
+   - Round 2 (quality): Mild feedback after first look ("看了下，有些地方想调整")
+   - Round 3 (UX): More opinionated after playing ("试了一下，感觉XX不太顺")
+   - Round 4 (features): Enthusiastic requests for more ("能不能再加个XX功能！")
+   - Round 5 (fixes): Bug reports ("有个小问题...")
+
+4. **Keep consistent persona within a session.** Pick a casual speaking style at Round 1 and stick with it. The generator session should feel like it's talking to the same person throughout.
+
+5. **Let ideas flow together.** Don't isolate each request. Connect them naturally:
+   > "还有那个按钮点下去感觉没什么变化，就数字变了看不出区别。能不能让它点的时候有点变化的效果？然后我有时候不想一直用鼠标点，能不能也支持按空格键得分？窗口的话每次打开位置都不太一样，能不能让它自动在屏幕中间？"
+
+### Fuzzification Rules
+
+Convert reviewer's technical feedback to beginner-friendly natural language. Strip all implementation details and rewrite as a casual user would say it:
+
+| Technical Feedback | Fuzzified (natural paragraph) |
 |---|---|
 | "移除 _on_click 中无效的 try/except TclError 捕获" | "那个 try/except 好像用不上，能不能清理掉？" |
-| "提取颜色/字体为 THEME 字典" | "颜色和字体分散在各处，改起来不方便，能不能统一放在一个地方？" |
-| "窗口居中，使用 winfo_screenwidth" | "窗口每次打开位置不一样，能不能居中？" |
-| "添加 after(120) 的按钮闪烁视觉反馈" | "按钮点下去没什么变化，能不能闪一下？" |
+| "提取颜色/字体为 THEME 字典" | "颜色和字体分散在各处，改起来不太方便，能不能统一放一个地方？" |
+| "窗口居中，使用 winfo_screenwidth" | "窗口每次打开位置都不太一样，能不能让它自动在屏幕中间？" |
+| "添加 after(120) 的按钮闪烁视觉反馈" | "按钮点下去没什么变化，能不能让它有点变化效果？" |
 | "新增 high_score 状态 + JSON 持久化" | "能不能加个最高分记录？重置的时候不要消失" |
-| "修复 after() 定时器泄露，注册 WM_DELETE_WINDOW" | "挑战中关窗口会报错，能不能修一下？" |
-| "管理 _flash_id，结束时 after_cancel" | "结束的时候按钮颜色会闪一下，不太对" |
+| "修复 after() 定时器泄露，注册 WM_DELETE_WINDOW" | "有个小问题，挑战中关窗口好像会报错" |
+| "管理 _flash_id，结束时 after_cancel" | "结束的时候按钮颜色好像闪了一下，看着不太对" |
 
-**Core principle**: Only preserve the WHAT (user wants), strip the HOW (technical implementation).
+**Core principle**: Only preserve the WHAT (user wants), strip the HOW (technical implementation). Then rewrite as a flowing paragraph, not a list.
+
+### Full Message Examples by Round
+
+**Round 1** (excited beginner):
+> "我想做一个小游戏，就是那种用户点击按钮可以得分的，但我不太确定用什么库或者怎么实现。用 Python 来做吧，你能帮我弄一下吗？"
+
+**Round 2** (mild feedback, quality):
+> "我看了一下代码，整体还不错！不过有几个地方想调整一下。那个 try/except 错误处理好像用不太上吧？能不能把没用的清理一下让代码简洁一点。然后颜色和字体这些设置分散在代码里各处，如果以后想改颜色还得到处找，能不能统一放在一个地方？还有就是程序万一出错了好像也没什么提示，能不能加个简单的错误提示？"
+
+**Round 3** (played with it, UX opinions):
+> "我又试了一下，感觉还可以再改善几个地方。那个错误弹窗好像有时候自己也会出问题，不如换成在终端打印错误信息吧，更简单一点。然后窗口每次打开的位置好像都不一样，能不能让它自动出现在屏幕正中间？按钮点下去之后感觉没什么变化，除了数字变了看不出区别，能不能让按钮点的时候闪一下，让人知道确实点到了？还有能不能也支持按空格键来得分？有时候不想一直用鼠标点。"
+
+**Round 4** (excited feature requests):
+> "我觉得游戏还可以更有意思一点！想加几个新功能。能不能加个最高分记录？就是每次玩的时候能看到自己历史最高分是多少，点重置的时候最高分不要消失，保留着。让我知道自己最好的成绩。还有能不能加一个限时挑战的模式？比如给 30 秒时间，看能在 30 秒内点多少下，时间到了就自动停下来告诉得了多少分。有个按钮可以开始挑战就好了。"
+
+**Round 5** (bug reports after testing):
+> "我试了一下有个几个小问题想修一下。那个限时挑战感觉时间好像少了一秒，刚点开始就变成 29 了，而且开始的 30 秒显示一闪就没了。然后如果在挑战进行中直接关掉窗口，好像程序会报错。挑战结束的时候按钮颜色好像也会闪一下绿色，看着不太对。这几个能不能帮我修一下？"
+
+Notice how each message: flows as one or two paragraphs, varies in opening/structure, feels like the same person growing more familiar with the project over time.
+
+### Step 6: Documentation Generation (platform projects only)
+
+After all iteration rounds are complete and merged, **automatically generate documentation files** for platform/web app projects. This step is mandatory for `platform` type projects and should not be skipped.
+
+#### Required Documentation Files
+
+| File | Content |
+|------|---------|
+| `docs/frontend.md` | Frontend architecture, page structure, component descriptions, data flow, state management, event handling |
+| `docs/backend.md` | Backend API endpoints (method, path, params, response), data models, server configuration, error handling |
+| `docs/admin-frontend.md` | Admin panel documentation (if applicable — skip if project has no admin frontend) |
+| `docs/deployment.md` | How to install dependencies, configure, and run the project |
+
+#### Documentation Standards
+
+1. **Language**: Match the project's language (Chinese for zh-CN projects, English for en projects)
+2. **Frontend docs** must include:
+   - Page/view listing with purpose
+   - Key functions and their responsibilities
+   - Data flow (localStorage, API calls, state)
+   - Event handling overview
+   - Security measures (XSS prevention, input validation)
+3. **Backend docs** must include:
+   - API endpoint table (method, path, description, params, response format)
+   - Data models / file structures
+   - Validation rules
+   - Error response format
+4. **Admin frontend docs** (when applicable):
+   - Same structure as frontend docs, focused on admin-specific features
+   - Permission/authentication model
+5. **Deployment docs** must include:
+   - Prerequisites (Node.js version, etc.)
+   - Installation steps
+   - Configuration
+   - Running the server
+
+#### Workflow
+
+1. Create `docs/` directory in the project root
+2. Generate each documentation file based on the actual codebase
+3. Commit with: `docs: 添加项目文档 - 前端/后端/部署说明`
+4. Push to master (or create a PR if preferred)
 
 ### Step 5: Finalization
 

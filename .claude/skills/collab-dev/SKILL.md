@@ -1,6 +1,6 @@
 ---
 name: collab-dev
-description: General-purpose collaborative development workflow using two A2A child sessions (generator + reviewer), fuzzified feedback relay, and per-round PR commits to GitHub. Supports web apps, APIs, tools, platforms, and more.
+description: General-purpose collaborative development workflow using two A2A child sessions (generator + reviewer), fuzzified feedback relay, per-round PR commits to GitHub, automatic Docker/CI/docs generation, and environment configuration. Supports web apps, APIs, tools, platforms, and more.
 ---
 
 # Collaborative Development Skill
@@ -38,9 +38,11 @@ User: "我想做一个XX"
   │     ├─ Fuzzify feedback → next round input
   │     └─ Each round: branch → commit → PR → merge
   │
-  ├─ 4. Generate documentation (docs/frontend.md, backend.md, deployment.md, etc.)
+  ├─ 4. Generate Dockerfile + docker-compose + CI config + .env.example
   │
-  └─ 5. Final: push collab log, show summary
+  ├─ 5. Generate documentation (docs/frontend.md, backend.md, deployment.md, etc.)
+  │
+  └─ 6. Final: push collab log, show summary
 ```
 
 ## Step 0: Scope & Tech Stack
@@ -181,7 +183,72 @@ Convert reviewer's technical feedback to beginner-friendly natural language. Str
 **Round 5** (bug reports after testing):
 > "我试了一下有几个小问题想修一下。那个搜索好像中文输入法的时候会搜到一半就触发了，用拼音的过程中就出结果了。然后拖拽排序在手机上好像不太好用，拖不动。还有那个标签删除之后再添加同名标签会报错。这几个能不能帮我修一下？"
 
-## Step 4: Documentation Generation
+## Step 4: Docker & CI Configuration
+
+After all iteration rounds are complete and merged, **automatically generate Docker and CI configuration files** and commit them to GitHub. Every commit that adds or changes project files must include these infra files when applicable. This step is mandatory.
+
+### Required Files
+
+| File | Content |
+|------|---------|
+| `Dockerfile` | Multi-stage build, correct runtime version, non-root user, proper `.dockerignore` |
+| `docker-compose.yml` | Service orchestration, volume mounts for data persistence, port mapping, environment variables via `.env` |
+| `.dockerignore` | Exclude `node_modules`, `.git`, `docs`, etc. |
+| `.github/workflows/ci.yml` | CI pipeline: install → lint → test → build on push/PR |
+| `.env.example` | All environment variables with placeholder values, clearly commented |
+| `.gitignore` | Ignore `node_modules/`, `.env`, `dist/`, data files with secrets, lock files if needed |
+
+### Environment Configuration Requirements
+
+Every project MUST include:
+1. **`.env.example`** — lists all configurable env vars with safe placeholder values and comments explaining each
+2. **`docker-compose.yml`** — uses `env_file: .env` to load variables, includes `environment:` section for runtime config
+3. **`Dockerfile`** — uses `ARG` for build-time variables, runtime reads from environment
+4. Application code reads config from `process.env` / `os.environ` with sensible defaults
+5. **Never commit real `.env` files** — only `.env.example`
+
+### Dockerfile Standards
+
+- Use official base images with explicit version tags (e.g., `node:18-alpine`, `python:3.11-slim`)
+- Multi-stage build for production (build stage + runtime stage)
+- Run as non-root user
+- Copy only necessary files (use `.dockerignore`)
+- Expose the correct port
+- Include `HEALTHCHECK` if applicable
+
+### docker-compose Standards
+
+- Define all services (app, database, redis, etc.)
+- Use `volumes:` for data persistence (`./data:/app/data`)
+- Use `ports:` for host-to-container mapping
+- Reference `.env` file for configuration
+- Include `restart: unless-stopped`
+
+### CI Configuration Standards
+
+- Trigger on push to `master` and pull requests
+- Steps: checkout → setup runtime → install dependencies → lint → test → build
+- Cache dependencies for speed
+- Matrix testing if multiple runtime versions are supported
+
+### Review Checklist
+
+When reviewer session examines code, it MUST also review:
+- **Dockerfile**: Is the base image pinned? Non-root user? Proper `.dockerignore`?
+- **docker-compose.yml**: Volumes for data persistence? Environment variables from `.env`? Port conflicts?
+- **CI config**: Are all necessary steps included? Is caching configured?
+- **Lock files**: `package-lock.json`, `requirements.txt` — are they present and up to date?
+- **`.env.example`**: Does it list all env vars used in code? Are placeholders safe?
+
+### Workflow
+
+1. Generate `Dockerfile`, `.dockerignore`, `docker-compose.yml`, `.env.example`, `.gitignore`
+2. Generate `.github/workflows/ci.yml` (if GitHub repo)
+3. Ensure lock files (`package-lock.json`, `requirements.txt`) are present and committed
+4. Commit with: `ci: 添加 Dockerfile + docker-compose + CI 配置 + 环境配置`
+5. Push to master
+
+## Step 5: Documentation Generation
 
 After all iteration rounds are complete and merged, **automatically generate documentation files** and commit them to GitHub. This step is mandatory and should not be skipped.
 
@@ -224,7 +291,7 @@ After all iteration rounds are complete and merged, **automatically generate doc
 3. Commit with: `docs: 添加项目文档 - 前端/后端/部署说明`
 4. Push to master
 
-## Step 5: Finalization
+## Step 6: Finalization
 
 1. **Update README**: Update `README.md` with full feature list and 5-round iteration table.
 2. **Push collab log**: Write `collab-log.md` with full iteration records and push to master.

@@ -70,9 +70,12 @@ User: "我想做一个XX游戏"
 Use `mcp__agent-cloud-delegation__send_message_to_agent` with agent `codeing-superpowers` twice:
 
 **Session A — Generator** (generation/modification):
+
+Do NOT send a generic "创建会话" message. Instead, directly send the user's actual requirement as the first message:
 ```
-send_message_to_agent(agent="codeing-superpowers", message="创建游戏生成/修改会话")
+send_message_to_agent(agent="codeing-superpowers", message="<用户的原始需求描述 + 技术栈>")
 ```
+This is because the generator session data may be exported/displayed later, so the first message should be a real requirement, not a meta command.
 Save `contextId` and `taskId` as `gen_contextId` and `gen_taskId`.
 
 **Session B — Reviewer** (optimization/review):

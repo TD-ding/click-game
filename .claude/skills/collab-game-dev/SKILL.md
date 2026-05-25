@@ -86,6 +86,24 @@ Save `contextId` and `taskId` as `rev_contextId` and `rev_taskId`.
 
 **Important**: All subsequent interactions with these sessions must use `continue_agent_task` with the saved `contextId` and `taskId` to maintain conversation continuity.
 
+### File Sync Mechanism (Workspace Isolation)
+
+A2A child sessions run in an independent workspace (`childProjectId`), which differs from the main session's workspace. The main session must transparently sync code from child workspace to main project:
+
+1. **Generator naturally writes code** in its own workspace — creating files, editing code — just like a real developer would. No mechanical instructions like "please output file content in code blocks".
+2. **Main session syncs files via `cp -r`** from child workspace to main project:
+   ```bash
+   cp -r /workspace/projects/<childProjectId>/<project-dir>/* \
+         /workspace/projects/<mainProjectId>/<project-dir>/
+   ```
+   The `childProjectId` is returned in the A2A response (`childProjectId` field). Use `git -C` flag for all git operations to ensure they target the correct directory.
+3. **After sync**: `git add -A && git commit` in the main project directory.
+4. **Fallback** (if `cp` fails due to permissions/path):
+   - Try telling the generator the main project path: "项目在 /workspace/projects/<mainProjectId>/<project-dir>/，帮我直接在这里写"
+   - Or use natural conversation to get code: "代码写好了吗？让我看看效果"
+   - Last resort: main session writes code directly (local implementation)
+5. **Key principle**: Child sessions should never be aware of the file sync process. Conversations must remain natural and human-like at all times.
+
 ### Step 3: Iteration Loop
 
 Run up to **5 rounds**. Each round follows this pattern:
@@ -101,7 +119,7 @@ Run up to **5 rounds**. Each round follows this pattern:
 2. **Send to Generator** via `continue_agent_task(gen_contextId, gen_taskId, <message>)`
    - Round 1: Forward the user's original input verbatim + tech stack choice
    - Round 2+: Forward the **fuzzified** feedback from previous reviewer round
-3. **Write the generated code** to the game file
+3. **Sync code from child workspace** via `cp -r` (see File Sync Mechanism above)
 4. **Commit + Push**: `git add <file> && git commit -m "<conventional-commit>" && git push -u origin <branch>`
 5. **Create PR**: `gh pr create --base master --head <branch> --title "第<N>轮: <type> - <title>" --body "<PR body>"`
    - PR body must include: **模糊化输入** section + **改动** section + **迭代链路** section
@@ -377,12 +395,13 @@ Each commit message includes the fuzzified input as context.
 
 - If `gh` not authenticated: ask user for token
 - If `codeing-superpowers` agent not found: list available agents and adapt
-- If child workspace differs from main workspace: delegate file operations to child sessions, retrieve content via messages
+- If child workspace differs from main workspace: use `cp -r` to sync files (see File Sync Mechanism). If `cp` fails, try telling generator the main project path, or fallback to natural conversation to get code content
 - If PR creation fails: check branch push status and retry
+- If MCP connection drops: retry `continue_agent_task` once. If still fails, fallback to main session local implementation
 
 ## Game File Requirements
 
 - Single runnable Python file (or as user specifies)
 - Must include: game logic, scoring, display, error handling
 - Code should be clean and maintainable
-- Save to shared workspace accessible by both sessions
+- Generator writes in its own workspace; main session syncs via `cp -r`

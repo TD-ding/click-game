@@ -88,6 +88,24 @@ Save `contextId` and `taskId` as `rev_contextId` and `rev_taskId`.
 
 **Important**: All subsequent interactions with these sessions must use `continue_agent_task` with the saved `contextId` and `taskId` to maintain conversation continuity.
 
+## File Sync Mechanism (Workspace Isolation)
+
+A2A child sessions run in an independent workspace (`childProjectId`), which differs from the main session's workspace. The main session must transparently sync code from child workspace to main project:
+
+1. **Generator naturally writes code** in its own workspace — creating files, editing code, installing deps — just like a real developer would. No mechanical instructions like "please output file content in code blocks".
+2. **Main session syncs files via `cp -r`** from child workspace to main project:
+   ```bash
+   cp -r /workspace/projects/<childProjectId>/<project-dir>/* \
+         /workspace/projects/<mainProjectId>/<project-dir>/
+   ```
+   The `childProjectId` is returned in the A2A response (`childProjectId` field). Use `git -C` flag for all git operations to ensure they target the correct directory.
+3. **After sync**: `git add -A && git commit` in the main project directory.
+4. **Fallback** (if `cp` fails due to permissions/path):
+   - Try telling the generator the main project path: "项目在 /workspace/projects/<mainProjectId>/<project-dir>/，帮我直接在这里写"
+   - Or use natural conversation to get code: "代码写好了吗？让我看看效果"
+   - Last resort: main session writes code directly (local implementation)
+5. **Key principle**: Child sessions should never be aware of the file sync process. Conversations must remain natural and human-like at all times.
+
 ## Step 3: Iteration Loop
 
 Run up to **5 rounds**. Each round follows this pattern:
@@ -103,7 +121,7 @@ Run up to **5 rounds**. Each round follows this pattern:
 2. **Send to Generator** via `continue_agent_task(gen_contextId, gen_taskId, <message>)`
    - Round 1: Forward the user's original input + confirmed tech stack
    - Round 2+: Forward the **fuzzified** feedback from previous reviewer round
-3. **Write the generated code** to project files
+3. **Sync code from child workspace** via `cp -r` (see File Sync Mechanism above)
 4. **Commit + Push**: `git add . && git commit -m "<conventional-commit>" && git push -u origin <branch>`
 5. **Create PR**: `gh pr create --base master --head <branch> --title "第<N>轮: <type> - <title>" --body "<PR body>"`
    - PR body must include: **模糊化输入** section + **改动** section + **迭代链路** section
@@ -371,19 +389,20 @@ After all iteration rounds are complete and merged, **automatically generate doc
 
 - If `gh` not authenticated: ask user for token
 - If `codeing-superpowers` agent not found: list available agents and adapt
-- If child workspace differs from main workspace: delegate file operations to child sessions, retrieve content via messages
+- If child workspace differs from main workspace: use `cp -r` to sync files (see File Sync Mechanism). If `cp` fails, try telling generator the main project path, or fallback to natural conversation to get code content
 - If PR creation fails: check branch push status and retry
 - If code output is truncated: request remaining parts using `continue_agent_task`
 - If generator times out: retry with a shorter/simpler message, or fix trivial issues directly in main session
+- If MCP connection drops: retry `continue_agent_task` once. If still fails, fallback to main session local implementation
 
 ## Multi-file Projects
 
 For projects with multiple files (web apps, APIs, etc.):
 
-1. Tell the generator the file structure upfront
-2. Request code file by file if needed (to avoid truncation)
-3. Each file is written separately to the project directory
-4. Git add all changed files per round
+1. Let the generator naturally create the project structure in its workspace
+2. Use `cp -r` to sync all files at once from child workspace
+3. Exclude `node_modules/` and `.git/` from sync (use `.gitignore`)
+4. Use `git -C <main-project-path>` for all git operations
 
 Common structures:
 - **Frontend (vanilla)**: `index.html`, `style.css`, `script.js`

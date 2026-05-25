@@ -186,84 +186,112 @@ Convert reviewer's technical feedback to beginner-friendly natural language. Str
 **Round 5** (bug reports after testing):
 > "我试了一下有几个小问题想修一下。那个搜索好像中文输入法的时候会搜到一半就触发了，用拼音的过程中就出结果了。然后拖拽排序在手机上好像不太好用，拖不动。还有那个标签删除之后再添加同名标签会报错。这几个能不能帮我修一下？"
 
-## Step 4: Docker & CI Configuration
+## Step 4: Lint, Tests, Docker & CI Configuration
 
-After all iteration rounds are complete and merged, **automatically generate Docker and CI configuration files** and commit them to GitHub. Every commit that adds or changes project files must include these infra files when applicable. This step is mandatory.
+After all iteration rounds are complete and merged, **automatically generate lint config, unit tests, Docker and CI configuration files** and commit them to GitHub. This step is mandatory and directly maps to the repo 验收标准.
 
-### Required Files
+### 4.1 Lint 配置（验收项：Lint 检查通过）
+
+每个项目必须配置 Linter，确保零 Error 级别违规：
+
+| 语言 | Linter | 配置文件 | 额外依赖 |
+|------|--------|----------|----------|
+| JavaScript/Node.js | ESLint (flat config) | `eslint.config.js` | `npm install --save-dev eslint globals` |
+| Python | flake8 或 ruff | `.flake8` 或 `pyproject.toml` | `pip install flake8` |
+
+**ESLint 配置要求**：
+- 使用 ESLint v9+ flat config 格式（`eslint.config.js`），不使用 `.eslintrc.json`
+- 必须包含规则：`no-undef`, `no-unused-vars`, `eqeqeq`, `no-var`, `prefer-const`
+- 在 `package.json` 中添加 `"lint": "eslint server.js public/*.js"` 脚本
+- 运行 `npx eslint server.js` 确保 **零 error 输出**
+
+### 4.2 单元测试（验收项：单元测试完整性）
+
+每个项目必须包含可运行的单元测试：
+
+**Node.js 项目**：
+- 安装：`npm install --save-dev jest supertest`
+- 测试目录：`test/`
+- `package.json` 添加 `"test": "jest --forceExit --detectOpenHandles"`
+- 服务端代码必须 `module.exports = app` 且 `app.listen()` 仅在 `require.main === module` 时执行
+- 测试内容必须覆盖：
+  - 核心业务逻辑（注册/登录/CRUD）
+  - 输入验证（正常路径 + 异常路径）
+  - 权限控制（未登录、非管理员）
+  - 有意义的断言（检查 status code、response body 字段）
+- 运行 `npm test` 确保全部通过
+
+**Python 项目**：
+- 使用 `pytest`，测试目录 `tests/`
+- 测试覆盖核心 API 端点和关键业务逻辑
+
+### 4.3 代码注释（验收项：代码中关键逻辑有注释）
+
+在生成代码时和 Step 4 完成后，确保核心业务模块有注释：
+- 每个 API 路由分组添加 `// --- 分组说明 ---` 注释
+- 关键业务逻辑（认证中间件、价格验证、权限校验）添加单行注释说明 WHY
+- 数据结构、配置常量添加注释说明用途
+- 验收标准：sota 模型抽查通过率 > 80%
+
+### 4.4 Docker & CI 配置文件
 
 | File | Content |
 |------|---------|
 | `Dockerfile` | Multi-stage build, correct runtime version, non-root user, proper `.dockerignore` |
 | `docker-compose.yml` | Service orchestration, volume mounts for data persistence, port mapping, environment variables via `.env` |
 | `.dockerignore` | Exclude `node_modules`, `.git`, `docs`, etc. |
-| `.github/workflows/ci.yml` | CI pipeline: install → lint → test → build on push/PR |
+| `.github/workflows/ci.yml` | CI pipeline: install → lint → test → health check on push/PR |
 | `.env.example` | All environment variables with placeholder values, clearly commented |
-| `.gitignore` | Ignore `node_modules/`, `.env`, `dist/`, data files with secrets, lock files if needed |
+| `.gitignore` | Ignore `node_modules/`, `.env`, `dist/`, data files with secrets |
 
 ### Environment Configuration Requirements
 
 Every project MUST include:
-1. **`.env.example`** — lists all configurable env vars with safe placeholder values and comments explaining each
-2. **`docker-compose.yml`** — uses `env_file: .env` to load variables, includes `environment:` section for runtime config
+1. **`.env.example`** — lists all configurable env vars with safe placeholder values and comments
+2. **`docker-compose.yml`** — uses `env_file: .env` to load variables
 3. **`Dockerfile`** — uses `ARG` for build-time variables, runtime reads from environment
 4. Application code reads config from `process.env` / `os.environ` with sensible defaults
 5. **Never commit real `.env` files** — only `.env.example`
 
 ### Dockerfile Standards
 
-- **所有配置必须可直接运行，禁止仅占位**。Dockerfile 必须 `docker build` 成功，docker-compose 必须 `docker-compose up` 正常启动服务，CI 配置必须在实际 push 时通过。不要生成无法执行的模板代码。
+- **所有配置必须可直接运行，禁止仅占位**
 - Use official base images with explicit version tags (e.g., `node:18-alpine`, `python:3.11-slim`)
-- Multi-stage build for production (build stage + runtime stage)
 - Run as non-root user
-- Copy only necessary files (use `.dockerignore`)
-- Expose the correct port
 - Include `HEALTHCHECK` if applicable
 
-### docker-compose Standards
-
-- Define all services (app, database, redis, etc.)
-- Use `volumes:` for data persistence (`./data:/app/data`)
-- Use `ports:` for host-to-container mapping
-- Reference `.env` file for configuration
-- Include `restart: unless-stopped`
-
-### CI Configuration Standards
+### CI Configuration Standards（关键：路径必须正确）
 
 - Trigger on push to `master` and pull requests
-- Steps: checkout → setup runtime → install dependencies → lint → test → build
+- Steps: checkout → setup runtime → install → lint → test → health check
 - Cache dependencies for speed
-- Matrix testing if multiple runtime versions are supported
-
-### Review Checklist
-
-When reviewer session examines code, it MUST also review:
-- **Dockerfile**: Is the base image pinned? Non-root user? Proper `.dockerignore`?
-- **docker-compose.yml**: Volumes for data persistence? Environment variables from `.env`? Port conflicts?
-- **CI config**: Are all necessary steps included? Is caching configured?
-- **Lock files**: `package-lock.json`, `requirements.txt` — are they present and up to date?
-- **`.env.example`**: Does it list all env vars used in code? Are placeholders safe?
+- **路径注意**：CI 在项目仓库内运行，文件在仓库根目录。**禁止**添加 `working-directory` 指向子目录，除非项目确实是 monorepo。例如 mini-shop 仓库的代码就在根目录，CI 步骤不需要 `working-directory: mini-shop`
+- CI 必须包含 `npm run lint` 和 `npm test` 步骤
 
 ### Workflow
 
-1. Generate `Dockerfile`, `.dockerignore`, `docker-compose.yml`, `.env.example`, `.gitignore`
-2. Generate `.github/workflows/ci.yml` (if GitHub repo)
-3. Ensure lock files (`package-lock.json`, `requirements.txt`) are present and committed
-4. Commit with: `ci: 添加 Dockerfile + docker-compose + CI 配置 + 环境配置`
-5. Push to master
+1. 配置 Linter（`eslint.config.js` 或 `.flake8`）
+2. 编写单元测试（`test/` 或 `tests/`）
+3. 补充核心代码注释
+4. 生成 `Dockerfile`, `.dockerignore`, `docker-compose.yml`, `.env.example`, `.gitignore`
+5. 生成 `.github/workflows/ci.yml`（路径正确，包含 lint + test 步骤）
+6. Ensure lock files (`package-lock.json`, `requirements.txt`) are present and committed
+7. **本地验证**：运行 `npm run lint` 和 `npm test` 确保通过
+8. Commit with: `feat: 添加 lint 配置 + 单元测试 + Docker/CI 配置 + 环境配置`
+9. Push to master
 
 ## Step 5: Documentation Generation
 
-After all iteration rounds are complete and merged, **automatically generate documentation files** and commit them to GitHub. This step is mandatory and should not be skipped.
+After all iteration rounds are complete and merged, **automatically generate documentation files** and commit them to GitHub. This step is mandatory and should not be skipped. Documentation must match the 验收标准 requirements.
 
 ### Required Documentation Files
 
 | File | Content |
 |------|---------|
 | `docs/frontend.md` | Frontend architecture, page structure, component descriptions, data flow, state management, event handling |
-| `docs/backend.md` | Backend API endpoints (method, path, params, response), data models, server configuration, error handling |
+| `docs/backend.md` | Backend API endpoints (method, path, params, response format, authentication, error codes), data models, server configuration |
 | `docs/admin-frontend.md` | Admin panel documentation (if applicable — skip if project has no admin frontend) |
-| `docs/deployment.md` | How to install dependencies, configure, and run the project |
+| `docs/deployment.md` | How to install dependencies, configure, and run the project. Must include: runtime version, system dependencies, environment variables, third-party services |
 
 ### Documentation Standards
 

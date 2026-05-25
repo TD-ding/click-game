@@ -200,9 +200,13 @@ After all iteration rounds are complete and merged, **automatically generate lin
 
 **ESLint 配置要求**：
 - 使用 ESLint v9+ flat config 格式（`eslint.config.js`），不使用 `.eslintrc.json`
-- 必须包含规则：`no-undef`, `no-unused-vars`, `eqeqeq`, `no-var`, `prefer-const`
+- **必须按文件类型拆分配置**：
+  - `server.js`：使用 `globals.node` 环境，`sourceType: 'commonjs'`
+  - `public/**/*.js`：使用 `globals.browser` 环境，`sourceType: 'script'`，`no-undef` 设为 `off`（浏览器 API 不需全部声明）
+  - `test/**/*.js`：使用 `globals.node` + `globals.jest`，`sourceType: 'commonjs'`
+- 必须包含规则：`no-unused-vars`, `eqeqeq`（强制 `===`）, `no-var`, `prefer-const`, `no-dupe-keys`, `no-empty`, `no-unreachable`
 - 在 `package.json` 中添加 `"lint": "eslint server.js public/*.js"` 脚本
-- 运行 `npx eslint server.js` 确保 **零 error 输出**
+- **本地验证**：运行 `npx eslint server.js public/*.js` 确保 **零 error 输出**后再提交
 
 #### 4.2 单元测试（验收项：单元测试完整性）
 

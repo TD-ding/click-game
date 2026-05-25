@@ -44,12 +44,11 @@ User: "我想做一个XX游戏"
   │     └─ Session B: codeing-superpowers (reviewer)
   │
   ├─ 3. Iteration loop (max 5 rounds):
-  │     ├─ Send fuzzified request → Generator → code
-  │     ├─ Forward code → Reviewer → feedback
-  │     ├─ Fuzzify feedback → next round input
-  │     └─ Each round: branch → commit → PR → merge
+  │     ├─ Round 1: code + lint config + ci.yml → PR (CI check) → merge
+  │     ├─ Round 2+: fuzzified feedback → code → PR (CI check) → merge
+  │     └─ Each round: branch → commit → PR (CI check) → merge
   │
-  ├─ 4. Generate Dockerfile + docker-compose + CI config + .env.example
+  ├─ 4. Generate Dockerfile + docker-compose + tests + cd.yml + .env.example
   │
   ├─ 5. Generate documentation (docs/frontend.md, backend.md, deployment.md, etc.)
   │
@@ -110,26 +109,33 @@ Run up to **5 rounds**. Each round follows this pattern:
 
 #### Round N: Generate/Modify
 
-1. **Create feature branch**: `git checkout -b <type>/round<N>-<slug>` from latest master
-   - Round 1: `feat/round1-init`
-   - Round 2: `refactor/round2-code-quality`
-   - Round 3: `feat/round3-ux`
-   - Round 4: `feat/round4-features`
-   - Round 5: `fix/round5-bugs`
+1. **Create feature branch** based on reviewer feedback theme:
+   - Round 1 is always `feat/round1-init`
+   - Round 2+: 根据上一轮 Reviewer 反馈的主要内容决定分支类型：
+     - 反馈主要是代码结构/质量/重复代码 → `refactor/round<N>-code-quality`
+     - 反馈主要是界面/交互/用户体验 → `feat/round<N>-ux`
+     - 反馈主要是新功能需求 → `feat/round<N>-<feature-slug>`
+     - 反馈主要是 bug/错误/异常 → `fix/round<N>-bugs`
+     - 混合反馈 → 取占比最大的类型
 2. **Send to Generator** via `continue_agent_task(gen_contextId, gen_taskId, <message>)`
    - Round 1: Forward the user's original input verbatim + tech stack choice
    - Round 2+: Forward the **fuzzified** feedback from previous reviewer round
 3. **Sync code from child workspace** via `cp -r` (see File Sync Mechanism above)
-4. **Commit + Push**: `git add <file> && git commit -m "<conventional-commit>" && git push -u origin <branch>`
-5. **Create PR**: `gh pr create --base master --head <branch> --title "第<N>轮: <type> - <title>" --body "<PR body>"`
+4. **Round 1 特殊处理**：主会话额外生成 lint 配置 + `.github/workflows/ci.yml`（仅 `pull_request` 触发，步骤 install → lint → build），确保第一轮 PR 就有 CI 门禁
+5. **本地验证**：运行 lint 确保通过
+6. **Commit + Push**: `git add <file> && git commit -m "<conventional-commit>" && git push -u origin <branch>`
+7. **Create PR**: `gh pr create --base master --head <branch> --title "第<N>轮: <type> - <title>" --body "<PR body>"`
    - PR body must include: **模糊化输入** section + **改动** section + **迭代链路** section
-6. **Merge PR**: `gh pr merge <N> --merge --delete-branch`
-7. **Sync local**: `git checkout master && git pull`
+8. **Merge PR**: `gh pr merge <N> --merge --delete-branch`
+9. **Sync local**: `git checkout master && git pull`
 
 #### Round N: Review (skip for Round 1, or run in parallel)
 
 1. **Send code to Reviewer** via `continue_agent_task(rev_contextId, rev_taskId, <message>)`
-   - Include the latest code content or instruct reviewer to read from shared workspace
+   - 告诉 Reviewer 读取主项目路径下的代码文件：`/workspace/projects/<mainProjectId>/<project-dir>/`
+   - 所有 workspace 在同一沙箱文件系统上，路径互通，Reviewer 可以直接读取主项目目录下的文件
+   - 消息示例："帮我看一下 /workspace/projects/<mainProjectId>/<project-dir>/ 下的代码，有什么可以改进的地方？"
+   - **不要**把代码内容贴在消息里，让 Reviewer 自己用 Read 工具去读文件
 2. **Receive feedback** (code quality, UX, features, bugs)
 3. **Fuzzify feedback** — convert technical suggestions into beginner-friendly language:
    - Remove all technical terms (THEME dict, TclError, WM_DELETE_WINDOW, etc.)
@@ -203,30 +209,11 @@ Convert reviewer's technical feedback to beginner-friendly natural language. Str
 
 Notice how each message: flows as one or two paragraphs, varies in opening/structure, feels like the same person growing more familiar with the project over time.
 
-### Step 4: Lint, Tests, Docker & CI Configuration
+### Step 4: Tests, Docker & CD Configuration
 
-After all iteration rounds are complete and merged, **automatically generate lint config, unit tests, Docker and CI configuration files** and commit them to GitHub. This step is mandatory and directly maps to the repo 验收标准.
+After all iteration rounds are complete and merged, **automatically generate unit tests, Docker configuration and CD workflow** and commit them to GitHub. Lint config and ci.yml 已在 Round 1 的 PR 中配置。This step is mandatory and directly maps to the repo 验收标准。
 
-#### 4.1 Lint 配置（验收项：Lint 检查通过）
-
-每个项目必须配置 Linter，确保零 Error 级别违规：
-
-| 语言 | Linter | 配置文件 | 额外依赖 |
-|------|--------|----------|----------|
-| JavaScript/Node.js | ESLint (flat config) | `eslint.config.js` | `npm install --save-dev eslint globals` |
-| Python | flake8 或 ruff | `.flake8` 或 `pyproject.toml` | `pip install flake8` |
-
-**ESLint 配置要求**：
-- 使用 ESLint v9+ flat config 格式（`eslint.config.js`），不使用 `.eslintrc.json`
-- **必须按文件类型拆分配置**：
-  - `server.js`：使用 `globals.node` 环境，`sourceType: 'commonjs'`
-  - `public/**/*.js`：使用 `globals.browser` 环境，`sourceType: 'script'`，`no-undef` 设为 `off`（浏览器 API 不需全部声明）
-  - `test/**/*.js`：使用 `globals.node` + `globals.jest`，`sourceType: 'commonjs'`
-- 必须包含规则：`no-unused-vars`, `eqeqeq`（强制 `===`）, `no-var`, `prefer-const`, `no-dupe-keys`, `no-empty`, `no-unreachable`
-- 在 `package.json` 中添加 `"lint": "eslint server.js public/*.js"` 脚本
-- **本地验证**：运行 `npx eslint server.js public/*.js` 确保 **零 error 输出**后再提交
-
-#### 4.2 单元测试（验收项：单元测试完整性）
+#### 4.1 单元测试（验收项：单元测试完整性）
 
 每个项目必须包含可运行的单元测试：
 
@@ -241,6 +228,7 @@ After all iteration rounds are complete and merged, **automatically generate lin
   - 权限控制（未登录、非管理员）
   - 有意义的断言（检查 status code、response body 字段）
 - 运行 `npm test` 确保全部通过
+- 生成后**更新 ci.yml**，添加 test 步骤（替换之前的 `--passWithNoTests`）
 
 **Python 项目**：
 - 使用 `pytest`，测试目录 `tests/`
@@ -250,22 +238,22 @@ After all iteration rounds are complete and merged, **automatically generate lin
 - 至少编写游戏核心逻辑的单元测试（得分计算、状态转换、边界条件）
 - 测试目录 `tests/`，文件名 `test_<game>.py`
 
-#### 4.3 代码注释（验收项：代码中关键逻辑有注释）
+#### 4.2 代码注释（验收项：代码中关键逻辑有注释）
 
-在生成代码时和 Step 4 完成后，确保核心业务模块有注释：
+确保核心业务模块有注释：
 - 每个功能分组添加注释说明
 - 关键业务逻辑（认证、状态管理、得分计算）添加注释说明 WHY
 - 配置常量添加注释说明用途
 - 验收标准：sota 模型抽查通过率 > 80%
 
-#### 4.4 Docker & CI 配置文件
+#### 4.3 Docker & CD 配置文件
 
 | File | Content |
 |------|---------|
 | `Dockerfile` | Multi-stage build, correct runtime version, non-root user, proper `.dockerignore` |
 | `docker-compose.yml` | Service orchestration, volume mounts for data persistence, port mapping, environment variables via `.env` |
 | `.dockerignore` | Exclude `node_modules`, `.git`, `docs`, etc. |
-| `.github/workflows/ci.yml` | CI pipeline: install → lint → test → health check on push/PR |
+| `.github/workflows/cd.yml` | **CD**: `push: master` 触发，install → build → Docker build → compose up → health check → teardown |
 | `.env.example` | All environment variables with placeholder values, clearly commented |
 | `.gitignore` | Ignore `node_modules/`, `.env`, `dist/`, data files with secrets |
 
@@ -285,24 +273,51 @@ Every project MUST include:
 - Run as non-root user
 - Include `HEALTHCHECK` if applicable
 
-#### CI Configuration Standards（关键：路径必须正确）
+#### Lint 配置标准（Round 1 使用）
 
-- Trigger on push to `master` and pull requests
-- Steps: checkout → setup runtime → install → lint → test → health check
+每个项目必须配置 Linter，确保零 Error 级别违规：
+
+| 语言 | Linter | 配置文件 | 额外依赖 |
+|------|--------|----------|----------|
+| JavaScript/Node.js | ESLint (flat config) | `eslint.config.js` | `npm install --save-dev eslint globals` |
+| Python | flake8 或 ruff | `.flake8` 或 `pyproject.toml` | `pip install flake8` |
+
+**ESLint 配置要求**：
+- 使用 ESLint v9+ flat config 格式（`eslint.config.js`），不使用 `.eslintrc.json`
+- **必须按文件类型拆分配置**：
+  - `server.js`：使用 `globals.node` 环境，`sourceType: 'commonjs'`
+  - `public/**/*.js`：使用 `globals.browser` 环境，`sourceType: 'script'`，`no-undef` 设为 `off`（浏览器 API 不需全部声明）
+  - `test/**/*.js`：使用 `globals.node` + `globals.jest`，`sourceType: 'commonjs'`
+- 必须包含规则：`no-unused-vars`, `eqeqeq`（强制 `===`）, `no-var`, `prefer-const`, `no-dupe-keys`, `no-empty`, `no-unreachable`
+- 在 `package.json` 中添加 `"lint": "eslint server.js public/*.js"` 脚本
+- **本地验证**：运行 `npx eslint server.js public/*.js` 确保 **零 error 输出**后再提交
+
+#### CI/CD Configuration Standards
+
+##### CI（每个 PR 的质量门禁）
+- **触发条件**：仅 `pull_request` 到 master
+- **步骤**：checkout → setup runtime → install → lint → test → build frontend
+- **不包含**：health check、Docker build（这些属于 CD）
 - Cache dependencies for speed
 - **路径注意**：CI 在项目仓库内运行，文件在仓库根目录。**禁止**添加 `working-directory` 指向子目录，除非项目确实是 monorepo
 - CI 必须包含 `npm run lint` 和 `npm test` 步骤
 
+##### CD（最终合并后的部署验证）
+- **触发条件**：仅 `push` 到 master（即 PR 合并后）
+- **步骤**：checkout → setup runtime → install → build frontend → Docker build → docker compose up → health check → teardown
+- Health check 必须验证服务可用性（如 curl `/api/health`）
+- Teardown 必须清理 Docker 容器
+
 #### Workflow
 
-1. 配置 Linter（`eslint.config.js` 或 `.flake8`）
-2. 编写单元测试（`test/` 或 `tests/`）
-3. 补充核心代码注释
+1. 编写单元测试（`test/` 或 `tests/`）
+2. 补充核心代码注释
+3. 更新 ci.yml（添加 test 步骤）
 4. 生成 `Dockerfile`, `.dockerignore`, `docker-compose.yml`, `.env.example`, `.gitignore`
-5. 生成 `.github/workflows/ci.yml`（路径正确，包含 lint + test 步骤）
+5. 生成 `.github/workflows/cd.yml`（CD，仅 push master 触发）
 6. Ensure lock files (`package-lock.json`, `requirements.txt`) are present and committed
-7. **本地验证**：运行 `npm run lint` 和 `npm test` 确保通过
-8. Commit with: `feat: 添加 lint 配置 + 单元测试 + Docker/CI 配置 + 环境配置`
+7. **本地验证**：运行 lint 和测试确保通过
+8. Commit with: `feat: 添加单元测试 + Docker/CD 配置 + 环境配置`
 9. Push to master
 
 ### Step 5: Documentation Generation
@@ -359,11 +374,13 @@ For **platform** type projects, generate all applicable docs below. For **game**
 ## PR Title and Commit Message Convention
 
 - **Round 1**: `feat: 初始版本 - <description>`
-- **Round 2**: `refactor: 代码质量优化 (第2轮)`
-- **Round 3**: `feat: 用户体验优化 (第3轮)`
-- **Round 4**: `feat: 功能增强 (第4轮)`
-- **Round 5**: `fix: Bug修复 (第5轮)`
-- **Final**: `docs: 添加协作开发日志 - 完整迭代记录与模糊化反馈`
+- **Round 2+**: 根据分支类型动态决定（与分支名一致）：
+  - `refactor: 代码质量优化 (第N轮)`
+  - `feat: 用户体验优化 (第N轮)` 或 `feat: 功能增强 - <feature> (第N轮)`
+  - `fix: Bug修复 (第N轮)`
+- **Tests + CD** (Step 4): `feat: 添加单元测试 + Docker/CD 配置 + 环境配置`
+- **Docs** (Step 5): `docs: 添加项目文档 - 前端/后端/部署说明`
+- **Final** (Step 6): `docs: 添加协作开发日志 - 完整迭代记录与模糊化反馈`
 
 Each commit message includes the fuzzified input as context.
 
